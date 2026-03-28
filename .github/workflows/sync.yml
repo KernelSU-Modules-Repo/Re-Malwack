@@ -48,7 +48,7 @@ jobs:
 
       - name: Pull release artifact and notes
         run: |
-          gh release download ${{ matrix.tag }} --repo $SOURCE_REPO --pattern "$MODULE_NAME_${{ matrix.tag }}.zip"
+          gh release download ${{ matrix.tag }} --repo $SOURCE_REPO --pattern "${MODULE_NAME}_${{ matrix.tag }}.zip"
           BODY=$(gh release view ${{ matrix.tag }} --repo $SOURCE_REPO --json body -q .body)
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
           echo "$BODY" >> $GITHUB_ENV
