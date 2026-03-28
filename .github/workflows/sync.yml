@@ -57,6 +57,7 @@ jobs:
       - name: Create Release
         uses: KernelSU-Modules-Repo/module_release@main
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ matrix.tag }}
           make_latest: ${{ matrix.tag == needs.get_tags.outputs.latest }}
           file: "${{ env.MODULE_NAME }}.zip"
