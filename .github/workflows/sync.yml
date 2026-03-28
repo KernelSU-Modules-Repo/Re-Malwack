@@ -48,7 +48,21 @@ jobs:
 
       - name: Pull release artifact and notes
         run: |
-          gh release download ${{ matrix.tag }} --repo $SOURCE_REPO --pattern "${MODULE_NAME}*.zip"
+          echo "Looking for assets matching pattern..."
+          gh release view ${{ matrix.tag }} --repo $SOURCE_REPO --json assets -q '.assets[].name'
+          
+          gh release download ${{ matrix.tag }} --repo $SOURCE_REPO --pattern "*.zip" --skip-existing
+          
+          # Capture the actual downloaded filename
+          DOWNLOADED_FILE=$(ls *.zip 2>/dev/null | head -1)
+          if [ -z "$DOWNLOADED_FILE" ]; then
+            echo "ERROR: No .zip file found!"
+            ls -la
+            exit 1
+          fi
+          echo "Found and using: $DOWNLOADED_FILE"
+          echo "DOWNLOADED_FILE=$DOWNLOADED_FILE" >> $GITHUB_ENV
+          
           BODY=$(gh release view ${{ matrix.tag }} --repo $SOURCE_REPO --json body -q .body)
           echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
           echo "$BODY" >> $GITHUB_ENV
@@ -60,7 +74,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ matrix.tag }}
           make_latest: ${{ matrix.tag == needs.get_tags.outputs.latest }}
-          file: "${{ env.MODULE_NAME }}.zip"
+          file: "${{ env.DOWNLOADED_FILE }}"
           body: ${{ env.RELEASE_BODY }}
 
       - uses: actions/attest-build-provenance@v3
