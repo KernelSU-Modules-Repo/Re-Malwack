@@ -25,8 +25,8 @@ jobs:
       - name: Check tags
         id: check
         run: |
-          SOURCE_TAGS=$(gh api repos/$SOURCE_REPO/tags | jq -r '.[].name' | sort)
-          CURRENT_TAGS=$(gh api repos/$GITHUB_REPOSITORY/tags | jq -r '.[].name' | sort)
+          SOURCE_TAGS=$(gh api repos/$SOURCE_REPO/tags | jq -r '.[].name' | sort -V)
+          CURRENT_TAGS=$(gh api repos/$GITHUB_REPOSITORY/tags | jq -r '.[].name' | sort -V)
           MISSING=$(comm -23 <(echo "$SOURCE_TAGS") <(echo "$CURRENT_TAGS"))
           MISSING_JSON=$(echo "$MISSING" | jq -R -s -c 'split("\n")[:-1] | map(select(. != ""))')
           echo "tags=$MISSING_JSON" >> $GITHUB_OUTPUT
@@ -48,19 +48,45 @@ jobs:
 
       - name: Pull release artifact and notes
         run: |
-          echo "Looking for assets matching pattern..."
+          echo "Looking for assets..."
           gh release view ${{ matrix.tag }} --repo $SOURCE_REPO --json assets -q '.assets[].name'
           
-          gh release download ${{ matrix.tag }} --repo $SOURCE_REPO --pattern "*.zip" --skip-existing
+          gh release download ${{ matrix.tag }} --repo $SOURCE_REPO --pattern "*.zip"
           
-          # Capture the actual downloaded filename
+          # Capture the downloaded filename
           DOWNLOADED_FILE=$(ls *.zip 2>/dev/null | head -1)
           if [ -z "$DOWNLOADED_FILE" ]; then
             echo "ERROR: No .zip file found!"
             ls -la
             exit 1
           fi
-          echo "Found and using: $DOWNLOADED_FILE"
+          echo "Downloaded: $DOWNLOADED_FILE"
+          
+          # Extract and check structure
+          mkdir -p temp_check
+          unzip -q "$DOWNLOADED_FILE" -d temp_check/
+          
+          # Check if module.prop exists at root or in a subdirectory
+          if [ -f "temp_check/module.prop" ]; then
+            echo "module.prop found at root"
+            WORK_DIR="temp_check"
+          elif [ -d "temp_check/Re-Malwack" ] && [ -f "temp_check/Re-Malwack/module.prop" ]; then
+            echo "module.prop found in subdirectory, restructuring..."
+            WORK_DIR="temp_check/Re-Malwack"
+          else
+            echo "ERROR: module.prop not found in zip!"
+            find temp_check -name "module.prop"
+            exit 1
+          fi
+          
+          # Fix line endings (convert CRLF to LF) and repackage
+          echo "Normalizing line endings and repackaging..."
+          cd "$WORK_DIR"
+          find . -type f \( -name "*.prop" -o -name "*.sh" -o -name "*.txt" -o -name "*.md" \) -exec dos2unix {} \; 2>/dev/null || find . -type f \( -name "*.prop" -o -name "*.sh" -o -name "*.txt" -o -name "*.md" \) -exec sed -i 's/\r$//' {} \;
+          zip -q -r "../../$DOWNLOADED_FILE" .
+          cd - > /dev/null
+          
+          rm -rf temp_check
           echo "DOWNLOADED_FILE=$DOWNLOADED_FILE" >> $GITHUB_ENV
           
           BODY=$(gh release view ${{ matrix.tag }} --repo $SOURCE_REPO --json body -q .body)
