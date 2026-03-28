@@ -79,4 +79,4 @@ jobs:
 
       - uses: actions/attest-build-provenance@v3
         with:
-          subject-path: "${{ env.MODULE_NAME }}.zip"
+          subject-path: "${{ env.DOWNLOADED_FILE }}"
