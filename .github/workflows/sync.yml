@@ -25,8 +25,8 @@ jobs:
       - name: Check tags
         id: check
         run: |
-          SOURCE_TAGS=$(gh api "repos/$SOURCE_REPO/tags?per_page=100" --paginate | jq -r '.[].name' | sort)
-          CURRENT_TAGS=$(gh api "repos/$GITHUB_REPOSITORY/tags?per_page=100" --paginate | jq -r '.[].name' | sort)
+          SOURCE_TAGS=$(gh api "repos/$SOURCE_REPO/tags?per_page=100" --paginate --jq '.[].name' | sort)
+          CURRENT_TAGS=$(gh api "repos/$GITHUB_REPOSITORY/tags?per_page=100" --paginate --jq '.[].name' | sort)
           MISSING=$(comm -23 <(echo "$SOURCE_TAGS") <(echo "$CURRENT_TAGS"))
           MISSING_JSON=$(echo "$MISSING" | jq -R -s -c 'split("\n")[:-1] | map(select(. != ""))')
           echo "tags=$MISSING_JSON" >> $GITHUB_OUTPUT
@@ -46,25 +46,23 @@ jobs:
         with:
           token: ${{ secrets.REPO_SYNC_PAT }}
 
-      - name: Pull release artifact and notes
+      - name: Pull release artifact and fix line endings
         run: |
           gh release download ${{ matrix.tag }} --repo $SOURCE_REPO --pattern "$MODULE_NAME*.zip" --dir ./dl
           ZIP_FILE=$(ls ./dl/$MODULE_NAME*.zip | head -1)
-          BODY=$(gh release view ${{ matrix.tag }} --repo $SOURCE_REPO --json body -q .body)
-          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
-          echo "$BODY" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
 
-      - name: Fix line endings in module.prop (LF only)
-        run: |
+          # Unzip, strip CR from module.prop, rezip
           mkdir -p ./extracted
           unzip -o "$ZIP_FILE" -d ./extracted
           if [ -f ./extracted/module.prop ]; then
             sed -i 's/\r//' ./extracted/module.prop
           fi
-          cd ./extracted
-          zip -r ../$MODULE_NAME.zip .
-          cd ..
+          (cd ./extracted && zip -r ../$MODULE_NAME.zip .)
+
+          BODY=$(gh release view ${{ matrix.tag }} --repo $SOURCE_REPO --json body -q .body)
+          echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+          echo "$BODY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Create Release
         uses: KernelSU-Modules-Repo/module_release@main
