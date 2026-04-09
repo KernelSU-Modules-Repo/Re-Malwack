@@ -59,7 +59,7 @@ jobs:
           with zipfile.ZipFile(src, 'r') as zin, \
                zipfile.ZipFile(dst, 'w', zipfile.ZIP_DEFLATED) as zout:
               for item in zin.infolist():
-                  data = zin.read(item.name)
+                  data = zin.read(item.filename)
                   if item.filename == 'module.prop':
                       data = data.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
                   zout.writestr(item, data)
