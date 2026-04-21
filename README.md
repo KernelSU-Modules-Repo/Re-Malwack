@@ -1,6 +1,6 @@
 <div align="center">
   
-<img src="https://raw.githubusercontent.com/ZG089/Re-Malwack/refs/heads/main/assets/Re-Malwack.png" width="512" height="512" alt="logo" />
+<img src="https://raw.githubusercontent.com/ZG089/Re-Malwack/refs/heads/main/assets/Re-Malwack.png" alt="logo" />
 </div>
 <h2 align="center">Not just a normal ad-blocker module ✨</h2>
 
